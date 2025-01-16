@@ -71,27 +71,27 @@ dt<- dt[, 7:ncol(dt)]
 dt.bos001 <- unlist(list.dirs("Z:/shares/forse/2_tls/data", recursive = T))
 dt.bos001 <- 
   
-collectfiles<-function(project){
-  files <- list.dirs(project, recursive = F)
-  files <- files[grepl("SCNPOS", files)]
-  files<- unlist(lapply(files, function(file) unlist(list.files(paste0(file, "/scans/"), pattern = "*.rxp", full.names = T))))
-  files <- files[!grepl("residual|@|mon", files)]
-  files <- (strsplit(files,"/"))
-  dt <- rbindlist(lapply(files, function(x) as.list(x)), idcol = "row_id", use.names = F, fill = T)
-  dt <- dt[, unname(which((apply(dt, 2, function(x) any(grepl(".PROJ", x)))))): ncol(dt)]
-  dt[, `:=`(V8=sub(".PROJ", "", V8),
-               V9=sub(".SCNPOS", "", V9),
-               V11=sub(".rxp", "", V11))]
-}
+  collectfiles<-function(project){
+    files <- list.dirs(project, recursive = F)
+    files <- files[grepl("SCNPOS", files)]
+    files<- unlist(lapply(files, function(file) unlist(list.files(paste0(file, "/scans/"), pattern = "*.rxp", full.names = T))))
+    files <- files[!grepl("residual|@|mon", files)]
+    files <- (strsplit(files,"/"))
+    dt <- rbindlist(lapply(files, function(x) as.list(x)), idcol = "row_id", use.names = F, fill = T)
+    dt <- dt[, unname(which((apply(dt, 2, function(x) any(grepl(".PROJ", x)))))): ncol(dt)]
+    dt[, `:=`(V8=sub(".PROJ", "", V8),
+              V9=sub(".SCNPOS", "", V9),
+              V11=sub(".rxp", "", V11))]
+  }
 
 scans<-rbind(collectfiles("Z:/shares/bosland/BOS/001/TL/2023/2023-09-14_Bosland_plot1.PROJ"),
-      collectfiles("Z:/shares/bosland/BOS/002/TL/2023/2023-08-21_Bosland_plot2.PROJ"),
-      collectfiles("Z:/shares/bosland/BOS/003/TL/2023/2023-08-11_Bosland_plot3.PROJ"),
-      collectfiles("Z:/shares/bosland/BOS/004/TL/2023/2023-08-09_Bosland_plot4.PROJ/"),
-      collectfiles("Z:/shares/bosland/BER/001_Eisberg/TL/2023/2023-07-09_Eisberg.PROJ/"),
-      collectfiles("Z:/shares/bosland/BER/002_Eisgraben/TL/2023/2023-06-29_Bartholoma_eisgraben.PROJ/"),
-      collectfiles("Z:/shares/bosland/BER/003_Endstal/TL/2023/2023-06-26_Endstal.PROJ/"),
-      collectfiles("Z:/shares/bosland/BER/004_Ofental/TL/2023/2023-06-27_Ofental.PROJ/"))
+             collectfiles("Z:/shares/bosland/BOS/002/TL/2023/2023-08-21_Bosland_plot2.PROJ"),
+             collectfiles("Z:/shares/bosland/BOS/003/TL/2023/2023-08-11_Bosland_plot3.PROJ"),
+             collectfiles("Z:/shares/bosland/BOS/004/TL/2023/2023-08-09_Bosland_plot4.PROJ/"),
+             collectfiles("Z:/shares/bosland/BER/001_Eisberg/TL/2023/2023-07-09_Eisberg.PROJ/"),
+             collectfiles("Z:/shares/bosland/BER/002_Eisgraben/TL/2023/2023-06-29_Bartholoma_eisgraben.PROJ/"),
+             collectfiles("Z:/shares/bosland/BER/003_Endstal/TL/2023/2023-06-26_Endstal.PROJ/"),
+             collectfiles("Z:/shares/bosland/BER/004_Ofental/TL/2023/2023-06-27_Ofental.PROJ/"))
 
 
 files <- list.files("Z:/shares/forse/2_tls/metrics/all/synthesis/", full.names = T)
