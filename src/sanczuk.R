@@ -56,22 +56,28 @@ profile_stats <- files[, .(pai = max(weighted_pai, na.rm = TRUE),
                            shannon_index = diversity(weighted_pavd, index = "shannon")), by = .(country, project, scan)]
 
 
-files <- list.dirs("Z:/shares/forse/2_tls/data", recursive = T)
-files<-unlist(files)
-files1 <- files[grepl(".RiSCAN/SCANS/", files)]
-files1 <- files1[grepl("SINGLESCANS", files1)]
+files.folders <- list.dirs("Z:/shares/forse/2_tls/data", recursive = T)
+files.folders<-unlist(files.folders)
+files.folders <- files.folders[grepl(".RiSCAN/SCANS/", files.folders)]
+files.folders <- files.folders[grepl("SINGLESCANS", files.folders)]
 
-scans <- unlist(list.files(files1, ".rxp", full.names = T))
-scans <- scans[!grepl("residual|@", scans)]
-scans <- (strsplit(scans,"/"))
-dt <- rbindlist(lapply(scans, function(x) as.list(x)), idcol = "row_id", use.names = F, fill = T)
+#list all rxp files
+scans.files <- unlist(list.files(files.folders, ".rxp", full.names = T))
+#drop residual files if any
+scans.files <- scans.files[!grepl("residual|@", scans.files)]
+#split the file paths into individual elements to create a data table
+scans.files <- (strsplit(scans.files,"/"))
+#create the data table
+dt.scans <- rbindlist(lapply(scans.files, function(x) as.list(x)), idcol = "row_id", use.names = F, fill = T)
+#retain relevant columns
+dt.scans<- dt.scans[, 7:ncol(dt.scans)]
+#name the columns
+colnames(dt.scans) <- c("country", "region", "region", "project", "type1", "scanposition", "type2", "file")
 
-dt<- dt[, 7:ncol(dt)]
 
-dt.bos001 <- unlist(list.dirs("Z:/shares/forse/2_tls/data", recursive = T))
-dt.bos001 <- 
-  
-  collectfiles<-function(project){
+
+#for bosland data  
+collectfiles<-function(project){
     files <- list.dirs(project, recursive = F)
     files <- files[grepl("SCNPOS", files)]
     files<- unlist(lapply(files, function(file) unlist(list.files(paste0(file, "/scans/"), pattern = "*.rxp", full.names = T))))
@@ -82,9 +88,9 @@ dt.bos001 <-
     dt[, `:=`(V8=sub(".PROJ", "", V8),
               V9=sub(".SCNPOS", "", V9),
               V11=sub(".rxp", "", V11))]
-  }
+    }
 
-scans<-rbind(collectfiles("Z:/shares/bosland/BOS/001/TL/2023/2023-09-14_Bosland_plot1.PROJ"),
+scans.all.bos<-rbind(collectfiles("Z:/shares/bosland/BOS/001/TL/2023/2023-09-14_Bosland_plot1.PROJ"),
              collectfiles("Z:/shares/bosland/BOS/002/TL/2023/2023-08-21_Bosland_plot2.PROJ"),
              collectfiles("Z:/shares/bosland/BOS/003/TL/2023/2023-08-11_Bosland_plot3.PROJ"),
              collectfiles("Z:/shares/bosland/BOS/004/TL/2023/2023-08-09_Bosland_plot4.PROJ/"),
@@ -94,9 +100,9 @@ scans<-rbind(collectfiles("Z:/shares/bosland/BOS/001/TL/2023/2023-09-14_Bosland_
              collectfiles("Z:/shares/bosland/BER/004_Ofental/TL/2023/2023-06-27_Ofental.PROJ/"))
 
 
-files <- list.files("Z:/shares/forse/2_tls/metrics/all/synthesis/", full.names = T)
+files.processed <- list.files("Z:/shares/forse/2_tls/metrics/all/synthesis/", full.names = T)
 
-scans.pro<- unlist(lapply(files, function(file){
+scans.processed<- unlist(lapply(files.processed, function(file){
   name <- tools::file_path_sans_ext(basename(file))
   name <- sub("formica_cities","formicacities", name)
   name <- sub("formica_transects","formicatransects", name)
@@ -105,10 +111,26 @@ scans.pro<- unlist(lapply(files, function(file){
   gsub(" ","", paste(day,"_",time))
 }))
 
+x <- scans.processed[1]
 
-scans <- scans[unlist(lapply(scans.pro, function (x) unlist(which(grepl(x, scans$V11)))))]
+scans.processed.bos <- scans.all.bos[unlist(lapply(scans.processed, function(scan){
+  which(scans.all.bos$V11%in%scan)
+}))]
+
+
+which(scans.all.bos$V11%in%scans.processed[53])
+
+
+scans.processed.bos <- scans.processed[unlist(lapply(scans.processed, function (x) unlist(which(grepl(x, scans.all.bos$V11)))))]
+
+dt.scans.bos <- 
+
+
+x<-scans.all.bos[V11%in%scans.processed.bos]
+
+scans.all.bos$V11 %in% scans.processed.bos
 
 dt2 <- dt[x]
 
-which(grepl(scans.pro[509],dt$V13))
+which(grepl(scans.processed[509],dt$V13))
 scans.pro<-paste0(strsplit(tools::file_path_sans_ext(files), "_")[3], "_", strsplit(tools::file_path_sans_ext(files), "_")[4])
