@@ -73,6 +73,9 @@ convert_to_scanpos <- function(x) {
 # Apply function to each value
 scanpos_values <- sapply(values, convert_to_scanpos)
 
+# Apply function to each value
+scanpos_values <- rep(c("ScanPos001", "ScanPos003", "ScanPos005", "ScanPos007", "ScanPos009"), 45)
+
 
 # Create data.table
 key.formicat <- data.table(project =sub("*P[0-9]+", "", values),  
@@ -191,7 +194,7 @@ colnames(key.formicac)<-c("project", "scanpos", "logger")
 
 
 #arville
-names.arv <- list.files("S:/shares/forse/2_tls/data/belgium/arville/arville/", pattern = "*.RiSCAN")
+names.arv <- list.files("Z:/shares/forse/2_tls/data/belgium/arville/arville/", pattern = "*.RiSCAN")
 key.arville <- data.table(project = sub(".RiSCAN", "", names.arv), 
                           scanpos = "ScanPos001",
                           logger = paste0("Arville_", as.numeric(sapply(strsplit(sub(".RiSCAN", "", names.arv), "\\."), `[`, 2))))
@@ -233,5 +236,51 @@ colnames(key.weave) <- c("project", "scanpos", "logger")
 
 
 
+dirs <- list.files(path = "Z:/shares/lidar_data_cavefornalab/ForSe/TLS/European_dataset/Cecilia Dahlsjo/TLS/", pattern = "\\.zip$", full.names = TRUE)
+dirs <- dirs[-31]
+
+
+alldirs<-lapply(dirs, function(dir) {
+  contents <- unzip(dir, list=T)
+})
+
+alldirs<- rbindlist(alldirs)
+alldirs<- alldirs[grepl("ScanPos_C_2m", Name)]
+alldirs<- alldirs[grepl(".rxp", Name)]
+alldirs<- alldirs[!grepl("mon.rxp", Name)]
+alldirs<-alldirs[,c("project", "proj1", "scanpos", "file"):=tstrsplit(Name, "/")]
+key.ash<-alldirs[,logger:=paste0(gsub("WW","ASH", project), "2")]
+key.ash<-key.ash[,c("logger","project", "scanpos")]
+
+
+##maeda
+
+# Create the data table
+key.maeda <- data.table(
+  logger = c("20858566", "20858577", "20858580", "20858591",
+             "94200114", "94212631", "94212633", "94212637"),
+  project = c("EA32", "UA52", "EA11", "UA21", "AF11", "AF19", "AF4", "AF8"),
+  scanpos = c("ScanPos001", "ScanPos001", "ScanPos001", "ScanPos001",
+              "ScanPos001", "ScanPos001", "ScanPos001", "ScanPos001"))
+
+#landshut
+key.landshut <- data.table(
+  logger = c("SITE9", "SITE11", "SITE12", "SITE13", "SITE16", "SITE17", "SITE18", "SITE23"),
+  project = c("2023-08-01_9", "2023-08-01_11", "2023-08-01_12", "2023-08-01_13", 
+              "2023-08-01_16", "2023-08-01_17", "2023-08-01_18", "2023-08-01_23"),
+  scanpos = c("ScanPos001", "ScanPos001", "ScanPos001", "ScanPos001",
+              "ScanPos001", "ScanPos001", "ScanPos001", "ScanPos001"))
+  
+#morpho
+  key.morpho <-data.table(
+    logger=c("FR_FS_morfoHET30-C",
+             "FR_FS_morfoHET30-F1",
+             "FR_FS_morfoHET30-F2",
+             "FR_FS_morfoHET30-F3",
+             "FR_FS_morfoHET30-F4"),
+    project=c(rep("morpho",5)),
+    scanpos = c("ScanPos0017", "ScanPos006", "ScanPos042", "ScanPos029", "ScanPos015"))
+  
+  
 ##
-key <- rbind(key.arville, key.formicac, key.formicat, key.gontrode, key.weave)
+key <- rbind(key.arville, key.formicac, key.formicat, key.gontrode, key.weave, key.maeda, key.morpho, key.ash, key.landshut)
