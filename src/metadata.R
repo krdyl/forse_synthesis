@@ -1,8 +1,9 @@
 
 #all processed files
-files.processed <- list.files("Z:/shares/forse/2_tls/metrics/all/new/", full.names = T)
+files.processed <- list.files("Z:/shares/forse/2_tls/metrics/all/new/", full.names = F)
 scans.processed <- tools::file_path_sans_ext(basename(files.processed))
-scans.processed <- gsub("all_allrxps_", "", files.processed)
+scans.processed <- gsub("all_allrxps_", "", scans.processed)
+scans.processed <- gsub("all_allrxps2_", "", scans.processed)
 
 
 
@@ -97,96 +98,97 @@ morpho.dirs[, file := sapply(morpho.dirs, function(x) {
   parts <- unlist(strsplit(x, "_"))
   paste(parts[1:2], collapse = "_")
 })]
+morpho.dirs[, scanpos := sapply(morpho.dirs, function(x) {
+  parts <- unlist(strsplit(x, "_"))
+  tools::file_path_sans_ext(parts[4])
+})]
 morpho.dirs <- morpho.dirs[,"country":="france"]
 morpho.dirs <- morpho.dirs[,"region1":="morpho"]
 morpho.dirs <- morpho.dirs[,"region2":="morpho"]
+colnames(morpho.dirs)[3] <- "scanposition"
 
-dt.scans <- rbind(dt.scans, morpho.dirs[, c("country", "region1", "region2", "file")], fill = T)
+
+dt.scans <- rbind(dt.scans, morpho.dirs[, c("country", "region1", "region2", "scanposition", "file")], fill = T)
+
 
 
 #wytham
-ww.dirs <- list.files("Z:/shares/forse/2_tls/data/uk/wytham/wytham/rxp/", recursive = T, pattern = ".rxp")
-ww.dirs <- as.data.table(ww.dirs)
-ww.dirs <- ww.dirs[,file:=basename(ww.dirs)]
+ww.dirs <- list.dirs("Z:/shares/transfers/karun/", recursive = F)
+ww.dirs <- basename(ww.dirs[grepl("T", ww.dirs)])
+ww.scans <- tools::file_path_sans_ext(list.files("Z:/shares/forse/2_tls/data/allrxps2/", recursive = F, pattern =".rxp"))
+ww.scans <- ww.scans[grepl("1506", ww.scans)]
+ww.scans <- sort(ww.scans)
+
+ww.dirs <- data.table("scanposition"=ww.dirs,
+                      "file"=ww.scans)
 ww.dirs <- ww.dirs[,"country":="uk"]
 ww.dirs <- ww.dirs[,"region1":="wytham"]
 ww.dirs <- ww.dirs[,"region2":="wytham"]
 
-dt.scans <- rbind(dt.scans, ww.dirs[, c("country", "region1", "region2", "file")], fill = T)
-dt.scans1 <- dt.scans
-dt.scans <- dt.scans1
+#stack
+dt.scans <- rbind(dt.scans, ww.dirs[, c("country", "region1", "region2", "file", "scanposition")], fill = T)
+
+#drop scans not processed
+dt.scans <- dt.scans[file%in%scans.processed]
+
+
+#convert all WEAVE project names to standard codes
+dt.scans<-dt.scans[,project2:=ifelse(grepl("Bosland_plot1",project),"BOS001", 
+                                     ifelse(grepl("Bosland_plot2",project),"BOS002", 
+                                            ifelse(grepl("Bosland_plot3",project),"BOS003",
+                                                   ifelse(grepl("Bosland_plot4",project),"BOS004",
+                                                          ifelse(grepl("Eisberg",project),"BER001",
+                                                                 ifelse(grepl("eisgraben",project),"BER002",
+                                                                        ifelse(grepl("Endstal",project),"BER003",
+                                                                               ifelse(grepl("Ofental",project),"BER004", project))))))))]
 
 
 
+#drop .rxp 
 dt.scans <- dt.scans[, file:=tools::file_path_sans_ext(file)]
 
 
+#fill empty columns manually
+dt.scans <- dt.scans[,country:=ifelse(grepl("BER",project2),"germany",country)]
+dt.scans <- dt.scans[,region1:=ifelse(grepl("BER",project2),"berchtesgaden",region1)]
+dt.scans <- dt.scans[,region2:=ifelse(grepl("BER",project2),"berchtesgaden",region2)]
 
-dt.scans <- dt.scans[file%in%scans.processed]
-dt.scans <- dt.scans[,-c("Name", "Length", "Date", "type1", "type2")]
-dt.scans <- dt.scans[,country:=ifelse(grepl("BER",project),"germany",country)]
-dt.scans <- dt.scans[,region1:=ifelse(grepl("BER",project),"berchtesgaden",region1)]
-dt.scans <- dt.scans[,region2:=ifelse(grepl("BER",project),"berchtesgaden",region2)]
-
-dt.scans <- dt.scans[,country:=ifelse(grepl("BOS",project),"belgium",country)]
-dt.scans <- dt.scans[,region1:=ifelse(grepl("BOS",project),"bosland",region1)]
-dt.scans <- dt.scans[,region2:=ifelse(grepl("BOS",project),"bosland",region2)]
+dt.scans <- dt.scans[,country:=ifelse(grepl("BOS",project2),"belgium",country)]
+dt.scans <- dt.scans[,region1:=ifelse(grepl("BOS",project2),"bosland",region1)]
+dt.scans <- dt.scans[,region2:=ifelse(grepl("BOS",project2),"bosland",region2)]
 
 dt.scans <- dt.scans[,country:=ifelse(grepl("ScanPos_C_2m",scanposition),"uk",country)]
 dt.scans <- dt.scans[,region1:=ifelse(grepl("ScanPos_C_2m",scanposition),"ash",region1)]
 dt.scans <- dt.scans[,region2:=ifelse(grepl("ScanPos_C_2m",scanposition),"ash",region2)]
-dt.scans <- dt.scans[scanposition=="ScanPos_C_2m",project2:= tstrsplit(project, "\\.")[[2]]]
+dt.scans <- dt.scans[scanposition=="ScanPos_C_2m", project2:= tstrsplit(project, "\\.")[[2]]]
 
-
-dt.scans <- dt.scans[region1=="arville", project2:=gsub(".RiSCAN", "",project)]
 dt.scans <- dt.scans[region1=="formica_transects", project2:=region2]
-
-yyy<-dt.scans
-
 dt.scans <- dt.scans[region2%in%c("CST1", "CST2", "CST3"), project2:=gsub("CS", "CSLO",region2)]
 dt.scans <- dt.scans[region2%in%c("SST1", "SST2", "SST3"), project2:=gsub("SS", "SSLO",region2)]
 
+#FR is same as NF (probably)
+dt.scans <- dt.scans[grepl("FrLoT", region2), project2:=gsub("FR", "NF", project2)]
+
+dt.scans<-dt.scans[, project2:=ifelse(region1=="formica_transects", region2, project2)]
+dt.scans<-dt.scans[scanposition=="ScanPos_C_2m",project2:= tstrsplit(project, "\\.")[[2]]]
 
 
-setkeyv(dt.scans, c("project2", "scanposition"))
-setkeyv(key, c("project", "scanpos"))
+dt.scans <- dt.scans[region2=="morpho", project2:="MORPHO"]
+dt.scans <-dt.scans[region2=="wytham", project2:="WYTHAM"]
 
-new <- dt.scans[key]
-
-new[logger=="FR_FS_morfoHET30-C", file:="180911_131440"]
-new[logger=="FR_FS_morfoHET30-F1", file:="180911_111601"]
-new[logger=="FR_FS_morfoHET30-F2", file:="180911_174101"]
-new[logger=="FR_FS_morfoHET30-F3", file:="180911_162251"]
-new[logger=="FR_FS_morfoHET30-F4", file:="180911_125253"]
-new[project2=="MORPHO", country:="france"]
-new[project2=="MORPHO", region2:="morpho"]
-
-new[project2%in%c("BOS001", "BOS002", "BOS003", "BOS004", "BER001", "BER002","BER003", "BER004"), region2:=project]
-
-
-write.csv(new, "Z:/shares/forse/2_tls/metrics/all/key.csv")
+#drop extension
+dt.scans<-dt.scans[, project2:=gsub(".RiSCAN|.riproject", "" , project2)]
 
 
 
-
-xx<-dt.scans[,project:=ifelse(grepl("Bosland_plot1",project),"BOS001", project)]
-xx<-xx[,project:=ifelse(grepl("Bosland_plot2",project),"BOS002", project)]
-xx<-xx[,project:=ifelse(grepl("Bosland_plot3",project),"BOS003", project)]
-xx<-xx[,project:=ifelse(grepl("Bosland_plot4",project),"BOS004", project)]
-
-xx<-xx[,project:=ifelse(grepl("Eisberg",project),"BER001", project)]
-xx<-xx[,project:=ifelse(grepl("eisgraben",project),"BER002", project)]
-xx<-xx[,project:=ifelse(grepl("Endstal",project),"BER003", project)]
-xx<-xx[,project:=ifelse(grepl("Ofental",project),"BER004", project)]
-
-xx[,project2:=gsub(".RiSCAN|.riproject", "" ,project)]
-xx[,project2:=ifelse(region1=="formica_transects", region2, project2)]
-xx[scanposition=="ScanPos_C_2m",project2:= tstrsplit(project, "\\.")[[2]]]
-xx[,project2:=ifelse(grepl("BOS|BER", project), project, project2)]
-xx[,project2:=gsub(".RiSCAN|.riproject", "" ,project)]
-
-
-
+# 
+# new[logger=="FR_FS_morfoHET30-C", file:="180911_131440"]
+# new[logger=="FR_FS_morfoHET30-F1", file:="180911_111601"]
+# new[logger=="FR_FS_morfoHET30-F2", file:="180911_174101"]
+# new[logger=="FR_FS_morfoHET30-F3", file:="180911_162251"]
+# new[logger=="FR_FS_morfoHET30-F4", file:="180911_125253"]
+# new[project2=="MORPHO", country:="france"]
+# new[project2=="MORPHO", region2:="morpho"]
 dt.scans$project2 <- toupper(dt.scans$project2)
 key$project <- toupper(key$project)
 
@@ -195,15 +197,4 @@ setkeyv(dt.scans, c("project2", "scanposition"))
 
 new<-dt.scans[key]
 
-dt.scans1 <- dt.scans[region1=="formica_transects"]
-key.formicac
-
-setkeyv(key.formicat, c("project", "scanpos"))
-setkeyv(dt.scans1, c("project2", "scanposition"))
-
-
-dt.scans1[key.formicat]
-
-
-dt.scans1$project2
-key.formicat$project
+new <- na.omit(new, cols=c("file"))

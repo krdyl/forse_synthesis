@@ -245,7 +245,9 @@ alldirs<-lapply(dirs, function(dir) {
 })
 
 alldirs<- rbindlist(alldirs)
+
 alldirs<- alldirs[grepl("ScanPos_C_2m", Name)]
+
 alldirs<- alldirs[grepl(".rxp", Name)]
 alldirs<- alldirs[!grepl("mon.rxp", Name)]
 alldirs<-alldirs[,c("project", "proj1", "scanpos", "file"):=tstrsplit(Name, "/")]
@@ -272,15 +274,35 @@ key.landshut <- data.table(
               "ScanPos001", "ScanPos001", "ScanPos001", "ScanPos001"))
   
 #morpho
-  key.morpho <-data.table(
-    logger=c("FR_FS_morfoHET30-C",
-             "FR_FS_morfoHET30-F1",
-             "FR_FS_morfoHET30-F2",
-             "FR_FS_morfoHET30-F3",
-             "FR_FS_morfoHET30-F4"),
-    project=c(rep("morpho",5)),
-    scanpos = c("ScanPos0017", "ScanPos006", "ScanPos042", "ScanPos029", "ScanPos015"))
+key.morpho <-data.table(
+  logger=c("FR_FS_morfoHET30-C",
+           "FR_FS_morfoHET30-F1",
+           "FR_FS_morfoHET30-F2",
+           "FR_FS_morfoHET30-F3",
+           "FR_FS_morfoHET30-F4"),
+  project=c(rep("morpho",5)),
+  scanpos = c("ScanPos017", "ScanPos006", "ScanPos042", "ScanPos029", "ScanPos015"))
+
+#ww
+
+key.ww <- fread("./data/ww_key.txt")
+
+colnames(key.ww) <- c("tree_id", "census", "logger", "scanpos")
+key.ww[,project := rep("wytham", 20)]
+key.ww <- key.ww[, c("logger", "project", "scanpos")]
+
+#zedelgem
+key.zed <-data.table(
+  logger=c("Z1", "Z2", "Z3", "Z4", "Z5", "Z6", "Z8"),
+  project=c("Z1", "Z2", "Z3", "Z4", "Z5", "Z6", "Z8"),
+  scanpos = c("ScanPos001", "ScanPos001", "ScanPos001", "ScanPos001", "ScanPos001", "ScanPos001", "ScanPos001"))
+
+
+  
+
   
   
 ##
-key <- rbind(key.arville, key.formicac, key.formicat, key.gontrode, key.weave, key.maeda, key.morpho, key.ash, key.landshut)
+key <- rbind(key.arville, key.formicac, key.formicat, key.gontrode, key.ww, 
+             key.weave, key.maeda, key.morpho, key.ash, key.landshut, key.zed)
+
