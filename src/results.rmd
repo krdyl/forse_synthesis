@@ -1,0 +1,58 @@
+```{r}
+
+library(ggpubr)
+library(ggplot2)
+library(ggsci)
+
+rng  <- range(pai3.ss$pai, pai3.ss$i.pai, na.rm = TRUE)
+pad  <- diff(rng) * 0.04
+lims <- c(rng[1] - pad, rng[2] + pad)
+
+p <- ggscatter(
+  data = pai3.ss, x = "pai", y = "i.pai",
+  color = "grey20", size = 2, alpha = 0.9
+) +
+    coord_equal() +
+  geom_abline()+
+  scale_x_continuous(limits = lims, expand = expansion(mult = 0)) +
+  scale_y_continuous(limits = lims, expand = expansion(mult = 0)) +
+  labs(x = "PAI old", y = "PAI new",
+       title = "PAI agreement") +
+  theme_pubr(base_size = 11)
+
+p
+
+ggsave(p, filename = "../results/pai_codefix.png", dpi = "retina", width = 15, height = 15, units = "cm")
+```
+
+```{r}
+
+pai2a <- pai2.ss[, c(9,11,seq(16,25))]
+pai3a <- pai3.ss[, c(9,11,seq(16,25))]
+
+setkeyv(pai2a, c("logger", "file"))
+setkeyv(pai3a, c("logger", "file"))
+
+pais <-pai2a[pai3a]
+
+rng  <- range(pais$pai, pais$i.pai, na.rm = TRUE)
+pad  <- diff(rng) * 0.04
+lims <- c(rng[1] - pad, rng[2] + pad)
+
+p <- ggscatter(
+  data = pais, x = "i.pai", y = "pai",
+  color = "grey20", size = 2, alpha = 0.9
+) +
+    coord_equal() +
+  geom_abline()+
+  scale_x_continuous(limits = lims, expand = expansion(mult = 0)) +
+  scale_y_continuous(limits = lims, expand = expansion(mult = 0)) +
+  labs(x = "PAI not filtered", y = "PAI filtered",
+       title = "PAI agreement") +
+  theme_pubr(base_size = 11)
+
+p
+
+ggsave(p, filename = "../results/pai_filtered_pub.png", dpi = "retina", width = 15, height = 15, units = "cm")
+```
+

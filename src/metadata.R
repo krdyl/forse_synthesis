@@ -29,57 +29,112 @@ colnames(dt.scans) <- c("country", "region1", "region2", "project", "type1", "sc
 
 
 
-#for bosland data  
-collectfiles<-function(project){
-  files <- list.dirs(project, recursive = F)
-  files <- files[grepl("SCNPOS", files)]
-  files<- unlist(lapply(files, function(file) unlist(list.files(paste0(file, "/scans/"), pattern = "*.rxp", full.names = T))))
-  files <- files[!grepl("residual|@|mon", files)]
-  files <- (strsplit(files,"/"))
-  dt <- rbindlist(lapply(files, function(x) as.list(x)), idcol = "row_id", use.names = F, fill = T)
-  dt <- dt[, unname(which((apply(dt, 2, function(x) any(grepl(".PROJ", x)))))): ncol(dt)]
-  dt[, `:=`(V8=sub(".PROJ", "", V8),
-            V9=sub(".SCNPOS", "", V9),
-            V11=sub(".rxp", "", V11))]
+#for WEAVE data  
+library(data.table)
+
+collectfiles <- function(project) {
+  pos_dirs <- list.dirs(project, recursive = FALSE, full.names = TRUE)
+  pos_dirs <- pos_dirs[grepl("SCNPOS", pos_dirs)]
+  if (!length(pos_dirs)) return(data.table())
+  
+  rxp <- unlist(lapply(pos_dirs, function(d) {
+    scans_dir <- file.path(d, "scans")
+    if (!dir.exists(scans_dir)) return(character(0))
+    list.files(scans_dir, pattern = "\\.rxp$", full.names = TRUE)
+  }), use.names = FALSE)
+  
+  rxp <- rxp[!grepl("residual|@|mon", rxp)]
+  if (!length(rxp)) return(data.table())
+  
+  rxp <- gsub("\\\\", "/", rxp)
+  
+  data.table(
+    proj   = sub("^.*/([^/]+)\\.PROJ/.*$", "\\1", rxp),
+    scnpos = sub("^.*/([^/]+)\\.SCNPOS/.*$", "\\1", rxp),
+    scan   = sub("^.*/([^/]+)\\.rxp$", "\\1", rxp)
+  )
 }
 
-scans.all.bos<-rbind(collectfiles("Z:/shares/bosland/BOS/001/TL/2023/2023-09-14_Bosland_plot1.PROJ"),
+scans.all.weave<-rbind(collectfiles("Z:/shares/bosland/BOS/001/TL/2023/2023-09-14_Bosland_plot1.PROJ"),
                      collectfiles("Z:/shares/bosland/BOS/002/TL/2023/2023-08-21_Bosland_plot2.PROJ"),
                      collectfiles("Z:/shares/bosland/BOS/003/TL/2023/2023-08-11_Bosland_plot3.PROJ"),
                      collectfiles("Z:/shares/bosland/BOS/004/TL/2023/2023-08-09_Bosland_plot4.PROJ/"),
-                     collectfiles("Z:/shares/bosland/BER/001_Eisberg/TL/2023/2023-07-09_Eisberg.PROJ/"),
-                     collectfiles("Z:/shares/bosland/BER/002_Eisgraben/TL/2023/2023-06-29_Bartholoma_eisgraben.PROJ/"),
-                     collectfiles("Z:/shares/bosland/BER/003_Endstal/TL/2023/2023-06-26_Endstal.PROJ/"),
-                     collectfiles("Z:/shares/bosland/BER/004_Ofental/TL/2023/2023-06-27_Ofental.PROJ/"))
+                     collectfiles("Z:/shares/bosland/BGD/001_Eisberg/TL/2023/2023-07-09_Eisberg.PROJ/"),
+                     collectfiles("Z:/shares/bosland/BGD/002_Eisgraben/TL/2023/2023-06-29_Bartholoma_eisgraben.PROJ/"),
+                     collectfiles("Z:/shares/bosland/BGD/003_Endstal/TL/2023/2023-06-26_Endstal.PROJ/"),
+                     collectfiles("Z:/shares/bosland/BGD/004_Ofental/TL/2023/2023-06-27_Ofental.PROJ/"))
 
 
 
-scans.processed.bos <- scans.all.bos[unlist(lapply(scans.processed, function(scan){
-  which(scans.all.bos$V11%in%scan)
-}))]
+scans.processed.weave <- scans.all.weave[scan %in% scans.processed]
 
-colnames(scans.processed.bos) <- c("project", "scanposition", "type1", "file")
+#replace project names
+scans.processed.weave <- scans.processed.bos[,project2:=ifelse(grepl("Bosland_plot1",project),"BOS001", 
+                                     ifelse(grepl("Bosland_plot2",project),"BOS002", 
+                                            ifelse(grepl("Bosland_plot3",project),"BOS003",
+                                                   ifelse(grepl("Bosland_plot4",project),"BOS004",
+                                                          ifelse(grepl("Eisberg",project),"BER001",
+                                                                 ifelse(grepl("eisgraben",project),"BER002",
+                                                                        ifelse(grepl("Endstal",project),"BER003",
+                                                                               ifelse(grepl("Ofental",project),"BER004", project))))))))]
+
+
+
+colnames(scans.processed.bos) <- c("project", "scanposition", "file")
 
 dt.scans <- rbind(dt.scans, scans.processed.bos, fill = T)
 
 
 dirs <- list.files(path = "Z:/shares/lidar_data_cavefornalab/ForSe/TLS/European_dataset/Cecilia Dahlsjo/TLS/", pattern = "\\.zip$", full.names = TRUE)
 
-#remove directory with the matrices
-dirs <- dirs[-31]
+## 1) Drop the “matrices” zip(s) by pattern instead of position
+# Example patterns – adjust to whatever uniquely identifies them
+dirs <- dirs[!grepl("matrix|matrices", dirs, ignore.case = TRUE)]
 
+## 2) List contents of all zips, with an id column so you can trace provenance
+alldirs <- rbindlist(lapply(dirs, function(z) {
+  x <- unzip(z, list = TRUE)
+  
+  # Ensure data.table
+  setDT(x)
+  
+  # Keep track of which zip it came from (useful for debugging)
+  x[, zipfile := z]
+  x
+}), fill = TRUE)
 
-alldirs<-lapply(dirs, function(dir) {
-  contents <- unzip(dir, list=T)
-})
+## 3) Filter to the files you actually want
+alldirs <- alldirs[
+  grepl("ScanPos_C_2m", Name, fixed = TRUE) &      # exact substring match
+    grepl("\\.rxp$", Name) &                         # ends with .rxp
+    !grepl("mon\\.rxp$", Name)                       # excludes mon.rxp at end
+]
 
-alldirs<- rbindlist(alldirs)
-alldirs<- alldirs[grepl("ScanPos_C_2m", Name)]
-alldirs<- alldirs[grepl(".rxp", Name)]
-alldirs<- alldirs[!grepl("mon.rxp", Name)]
-alldirs<-alldirs[,c("region1", "project", "scanposition", "file"):=tstrsplit(Name, "/")]
-dt.scans <- rbind(dt.scans, alldirs[, c("project", "scanposition", "file")], fill = T)
+## 4) Split the path robustly
+# If you truly know it's exactly 4 segments, keep this:
+# alldirs[, c("region1", "project", "scanposition", "file") := tstrsplit(Name, "/", fixed = TRUE)]
+#
+# Safer: split into all parts then take the LAST 4 segments
+parts <- tstrsplit(alldirs$Name, "/", fixed = TRUE, fill = NA_character_)
 
+# Convert to DT just for easy indexing
+parts_dt <- as.data.table(parts)
+
+# Take last 4 columns, regardless of overall path depth
+last4 <- parts_dt[, (ncol(parts_dt)-3L):ncol(parts_dt)]
+
+setnames(last4, c("region1", "project", "scanposition", "file"))
+alldirs <- cbind(alldirs, last4)
+
+## 5) Keep only what you need, append into dt.scans
+to_add <- unique(alldirs[, .(project, scanposition, file)])  # unique optional
+
+# Ensure dt.scans exists and has the right columns
+if (!exists("dt.scans")) {
+  dt.scans <- to_add
+} else {
+  dt.scans <- rbindlist(list(dt.scans, to_add), use.names = TRUE, fill = TRUE)
+}
 
 
 
@@ -113,11 +168,17 @@ dt.scans <- rbind(dt.scans, morpho.dirs[, c("country", "region1", "region2", "sc
 
 
 #wytham
-ww.dirs <- list.dirs("Z:/shares/transfers/karun/", recursive = F)
+ww.dirs <- list.dirs("Z:/shares/kdayal/1_data/1_TLS/5_forse/P6.RiSCAN/SCANS", recursive = T)
+
 ww.dirs <- basename(ww.dirs[grepl("T", ww.dirs)])
 ww.scans <- tools::file_path_sans_ext(list.files("Z:/shares/forse/2_tls/data/allrxps2/", recursive = F, pattern =".rxp"))
 ww.scans <- ww.scans[grepl("1506", ww.scans)]
 ww.scans <- sort(ww.scans)
+
+ww.dirs[grepl("1506", ww.scans)]
+
+ww.dirs[unlist(ww.dirs) %in% unlist(ww.scans)]
+
 
 ww.dirs <- data.table("scanposition"=ww.dirs,
                       "file"=ww.scans)
@@ -128,24 +189,11 @@ ww.dirs <- ww.dirs[,"region2":="wytham"]
 #stack
 dt.scans <- rbind(dt.scans, ww.dirs[, c("country", "region1", "region2", "file", "scanposition")], fill = T)
 
-#drop scans not processed
-dt.scans <- dt.scans[file%in%scans.processed]
-
-
-#convert all WEAVE project names to standard codes
-dt.scans<-dt.scans[,project2:=ifelse(grepl("Bosland_plot1",project),"BOS001", 
-                                     ifelse(grepl("Bosland_plot2",project),"BOS002", 
-                                            ifelse(grepl("Bosland_plot3",project),"BOS003",
-                                                   ifelse(grepl("Bosland_plot4",project),"BOS004",
-                                                          ifelse(grepl("Eisberg",project),"BER001",
-                                                                 ifelse(grepl("eisgraben",project),"BER002",
-                                                                        ifelse(grepl("Endstal",project),"BER003",
-                                                                               ifelse(grepl("Ofental",project),"BER004", project))))))))]
-
-
-
 #drop .rxp 
 dt.scans <- dt.scans[, file:=tools::file_path_sans_ext(file)]
+
+#drop scans not processed
+dt.scans <- dt.scans[file%in%scans.processed]
 
 
 #fill empty columns manually
